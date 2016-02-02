@@ -804,7 +804,7 @@ public class QueryAutoFilteringComponent extends QueryComponent implements SolrC
       
     ShardHandlerFactory shardHandlerFactory = container.getShardHandlerFactory( );
     ShardHandler shardHandler = shardHandlerFactory.getShardHandler();
-    shardHandler.checkDistributed( rb );
+    shardHandler.prepDistributed( rb );
       
     Log.debug( "Is Distributed = " + rb.isDistrib );
       
