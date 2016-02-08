@@ -3,13 +3,10 @@ package org.apache.solr.handler.component;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.CommonParams;
-import org.apache.solr.common.params.TermsParams;
-import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.request.SolrQueryRequest;
 
 import org.apache.solr.util.plugin.SolrCoreAware;
-import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.core.SolrEventListener;
@@ -25,57 +22,32 @@ import org.apache.lucene.store.ByteArrayDataInput;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.CharsRef;
 import org.apache.lucene.util.CharsRefBuilder;
-import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.uninverting.UninvertingReader;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.index.Term;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.core.KeywordTokenizer;
-import org.apache.lucene.analysis.core.LowerCaseFilter;
 import org.apache.lucene.analysis.synonym.SynonymMap;
-import org.apache.lucene.analysis.synonym.SynonymMap.Builder;
 import org.apache.lucene.analysis.synonym.SolrSynonymParser;
-import org.apache.lucene.analysis.util.TokenFilterFactory;
-import org.apache.lucene.analysis.util.TokenizerFactory;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
 
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.util.fst.FST;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.StringTokenizer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.io.StringReader;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Creates filter or boost queries from freetext queries based on pattern matches with terms in stored String fields. Uses
  * the FieldCache (UninvertingIndex) to build a map of term to search field. This map is then used to parse the
  * query to detect phrases that map to specific field values. These field/value pairs can then be used to generate
  * a filter query or a boost query if recall needs to be preserved.
- * <p/>
+ *
  * For SolrCloud, this component requires that the TermsComponent be defined in solrconfig.xml. This is used
  * to get distributed term maps.
- * <p/>
+
  * Compiles with Solr 5.x
  */
 
@@ -729,6 +701,9 @@ public class QueryAutoFilteringComponent extends QueryComponent
             TermsEnum te = sdv.termsEnum();
             while (te.next() != null) {
                 BytesRef term = te.term();
+                if (term.length == 0) {
+                    continue;
+                }
                 String fieldValue = term.utf8ToString();
                 addTerm(fieldChars, fieldValue, fieldBuilder, termBuilder);
             }
@@ -814,67 +789,7 @@ public class QueryAutoFilteringComponent extends QueryComponent
 
     private void addDistributedTerms(ResponseBuilder rb, SynonymMap.Builder fieldBuilder,
         SynonymMap.Builder termBuilder, ArrayList<String> searchFields) throws IOException {
-        SolrIndexSearcher searcher = rb.req.getSearcher();
-        CoreContainer container = searcher.getCore().getCoreDescriptor().getCoreContainer();
-
-        ShardHandlerFactory shardHandlerFactory = container.getShardHandlerFactory();
-        ShardHandler shardHandler = shardHandlerFactory.getShardHandler();
-        shardHandler.prepDistributed(rb);
-
-        Log.debug("Is Distributed = " + rb.isDistrib);
-
-        if (rb.isDistrib) {
-            // create a ShardRequest that contains a Terms Request.
-            // don't send to this shard???
-            ShardRequest sreq = new ShardRequest();
-            sreq.purpose = ShardRequest.PURPOSE_GET_TERMS;
-            sreq.actualShards = rb.shards;
-            ModifiableSolrParams params = new ModifiableSolrParams();
-
-            params.set(TermsParams.TERMS_LIMIT, -1);
-            params.set(TermsParams.TERMS_SORT, TermsParams.TERMS_SORT_INDEX);
-            String[] fields = searchFields.toArray(new String[searchFields.size()]);
-            params.set(TermsParams.TERMS_FIELD, fields);
-
-            params.set(CommonParams.DISTRIB, "false");
-            params.set(ShardParams.IS_SHARD, true);
-            params.set(ShardParams.SHARDS_PURPOSE, sreq.purpose);
-            params.set(CommonParams.QT, termsHandler);
-            params.set(TermsParams.TERMS, "true");
-
-            if (rb.requestInfo != null) {
-                params.set("NOW", Long.toString(rb.requestInfo.getNOW().getTime()));
-            }
-            sreq.params = params;
-
-            for (String shard : rb.shards) {
-                Log.debug("sending request to shard " + shard);
-                params.set(ShardParams.SHARD_URL, shard);
-                shardHandler.submit(sreq, shard, params);
-            }
-
-            ShardResponse rsp = shardHandler.takeCompletedIncludingErrors();
-            if (rsp != null) {
-                Log.debug("got " + rsp.getShardRequest().responses.size() + " responses");
-                for (ShardResponse srsp : rsp.getShardRequest().responses) {
-                    Log.debug("Got terms response from " + srsp.getShard());
-
-                    if (srsp.getException() != null) {
-                        Log.debug("ShardResponse Exception!! " + srsp.getException());
-                    }
-
-                    @SuppressWarnings("unchecked") NamedList<NamedList<Number>> terms =
-                        (NamedList<NamedList<Number>>) srsp.getSolrResponse().getResponse()
-                            .get("terms");
-                    if (terms != null) {
-                        addTerms(terms, fieldBuilder, termBuilder, searchFields);
-                    } else {
-                        Log.warn(
-                            "terms was NULL! - make sure that /terms request handler is defined in solrconfig.xml");
-                    }
-                }
-            }
-        }
+        return;
     }
 
     private void addTerms(NamedList<NamedList<Number>> terms, SynonymMap.Builder fieldBuilder,
