@@ -1,4 +1,9 @@
 # query-autofiltering-component
+This is a solr 5.3+ compatible fork of (https://github.com/LucidWorks/query-autofiltering-component)[https://github.com/LucidWorks/query-autofiltering-component].
+Solr 4.x code has been removed and the solr 5.3 code is/will be refactored.
+
+Currently does NOT support distributed searching/sharding (WIP).
+
 A Query Autofiltering SearchComponent for Solr that can translate free-text queries into structured queries using index metadata.
 
 # Introduction
