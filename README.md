@@ -1,8 +1,13 @@
 # query-autofiltering-component
+This is a solr 5.3+ compatible fork of (https://github.com/LucidWorks/query-autofiltering-component)[https://github.com/LucidWorks/query-autofiltering-component].
+Solr 4.x code has been removed and the solr 5.3 code is/will be refactored.
+
+Currently does NOT support distributed searching/sharding (WIP).
+
 A Query Autofiltering SearchComponent for Solr that can translate free-text queries into structured queries using index metadata.
 
 # Introduction
-The Query Autofiltering Component provides a method of inferring user intent by matching noun-phrases that are typically used for faceted-navigation into Solr filter or boost queries (depending on configuration settings) so that more precise user queries are met with more precise results. The algorithm uses a "longest contiguous phrase match" strategy which allows it to disambiguate queries where single terms are ambiguous but phrases are not. It will work when there is structured information in the form of String fields that are normally used for faceted navigation. It works across fields by building a map of search term to index field using the Lucene FieldCache (UninvertingReader in Solr5.x and above). This enables users to create multi-term queries that combine attributes across facet fields - as if they had searched and then navigated through several facet layers. To address the problem of exact-match only semantics of String fields, support for synonyms (including multi-term synonyms) and stemming was added. 
+The Query Autofiltering Component provides a method of inferring user intent by matching noun-phrases that are typically used for faceted-navigation into Solr filter or boost queries (depending on configuration settings) so that more precise user queries are met with more precise results. The algorithm uses a "longest contiguous phrase match" strategy which allows it to disambiguate queries where single terms are ambiguous but phrases are not. It will work when there is structured information in the form of String fields that are normally used for faceted navigation. It works across fields by building a map of search term to index field using the Lucene FieldCache (UninvertingReader in Solr5.x and above). This enables users to create multi-term queries that combine attributes across facet fields - as if they had searched and then navigated through several facet layers. To address the problem of exact-match only semantics of String fields, support for synonyms (including multi-term synonyms) and stemming was added.
 
 # Building from source
 
@@ -33,10 +38,10 @@ solrconfig.xml snippet:
   &lt;searchComponent name="autofilter" class="org.apache.solr.handler.component.QueryAutoFilteringComponent" >
     &lt;str name="synonyms">synonyms.txt&lt;/str>
   &lt;/searchComponent>
-  
+
   &lt;!-- Needed for Autofiltering in SolrCloud -->
   &lt;searchComponent name="termsComp" class="org.apache.solr.handler.component.TermsComponent"/>
-  
+
   &lt;requestHandler name="/terms" class="org.apache.solr.handler.component.SearchHandler">
       &lt;arr name="components">
           &lt;str>termsComp&lt;/str>
@@ -59,13 +64,13 @@ To use autofiltering boost query mode "on demand" add an &amp;afb parameter to t
 
 ##Sample Data
 
-To show the query autofiltering component in action, I created a sample data set for a hypothetical department store. The input data contains a number of fields, product_type, product_category, color, material, brand, style, consumer_type and so on. 
+To show the query autofiltering component in action, I created a sample data set for a hypothetical department store. The input data contains a number of fields, product_type, product_category, color, material, brand, style, consumer_type and so on.
 
-To build the demo, download Solr 5 (or Solr 4 if that is what your production app is on), put the schema.xml and solrconfig.xml in the solr/collection1/conf directory for Solr 4 or server/solr/configsets/basic_configs/conf for Solr 5 - or better yet, clone basic_configs/conf and create a new configset called query_autofilter_config_set and replace schema.xml and solrconfig.xml. 
+To build the demo, download Solr 5 (or Solr 4 if that is what your production app is on), put the schema.xml and solrconfig.xml in the solr/collection1/conf directory for Solr 4 or server/solr/configsets/basic_configs/conf for Solr 5 - or better yet, clone basic_configs/conf and create a new configset called query_autofilter_config_set and replace schema.xml and solrconfig.xml.
 
 Put the jar file generated from running "ant dist" - or simply "ant" (it will be in the dist/ folder and called query-autofiltering-component-1.0.jar) into solr-webapp/webapp/WEB-INF/lib for Solr 4 or server/solr-webapp/webapp/WEB-INF/lib for Solr 5.
 
-Startup Solr (Solr 4: java -jar start.jar  Solr 5: ./bin/solr start), import the data file using the post tool (java -jar post.jar QueryAutofilteringData_1.xml) and start searching (localhost:8983/solr). 
+Startup Solr (Solr 4: java -jar start.jar  Solr 5: ./bin/solr start), import the data file using the post tool (java -jar post.jar QueryAutofilteringData_1.xml) and start searching (localhost:8983/solr).
 
 Note - with Solr 5 you will need to create a new collection first, it ships with configuration sets, not with a pre-built collection (collection1) as in Solr 4.
 
@@ -73,7 +78,7 @@ To compare the behavior of the search engine with and without autofiltering, use
 
 Happy autofiltering!
 
-#High Level Design 
+#High Level Design
 
 [ basic control and data flow ] - build synonym maps (finite state transform)
 
@@ -81,7 +86,6 @@ query parsing steps
 alternative parsings of a phrase - alternative parsing must be able to use the complete phrase - partial mappings are rejected in favor of longer matches (e.g. "red baron pizza" - partial match "red" will be rejected.  "white linen shirts"  - "white linen" has two alternate and complete matches - brand:"white linen" and (color:white and material:linen)
 handling boolean terms in user query
 verb/adjective/preposition mapping
-
 
 
 
