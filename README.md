@@ -11,14 +11,11 @@ The Query Autofiltering Component provides a method of inferring user intent by 
 
 # Building from source
 
-The buildware requires that Apache Ant is installed on the development machine. There are two versions of the component in this distribution, one for Solr 4.x installations and one for Solr 5.x. This is due to API changes introduced in Solr 5.0 for Lucene FieldCache access.  The buildware was tested with Solr 4.10.3 and Solr 5.1 respectively.
+The buildware requires that Apache Ant is installed on the development machine. There are two versions of the component in this distribution, one for Solr 5.x. This is due to API changes introduced in Solr 5.0 for Lucene FieldCache access.  The buildware was tested with Solr 5.1 respectively.
 
-After downloading the source code distribution, cd to the appropriate directory (solr4.x or solr5.x) and type: ant
+After downloading the source code distribution, cd to the appropriate directory (solr5.x) and type: ant
 
-If all goes well, (BUILD SUCCESSFUL message) a Java archive file should be created as dist/query-autofiltering-component-1.0.jar. This jar file should be copied to [solr-home]/solr/lib in Solr 4.x and [solr-home]/server/lib in Solr 5.x
-
-
-Note that in Solr4.x there is an intermittent classpath issue that may cause the test to fail with "fix your classpath to have tests-framework.jar before lucene-core.jar". If this happens, running the build again (ant clean test) should (eventually) yield a successful completion (YMMV for Solr < 4.10.3 but I will update this README for issues with older 4.x versions as they are identified). Note that this issue is not related to Query Autofiltering code, rather it is due to assertion failures in the Java ClassLoader layers - and does not occur with the Solr5.x build.
+If all goes well, (BUILD SUCCESSFUL message) a Java archive file should be created as dist/query-autofiltering-component-1.0.jar. This jar file should be copied to [solr-home]/server/lib in Solr 5.x
 
 # Configuration
 
@@ -49,6 +46,22 @@ solrconfig.xml snippet:
   &lt;/requestHandler>
 </pre>
 
+## Whitelists
+
+The whilelist field definition allows you to define a whitelist rather than an exclude list of fields. The whitelist takes priority so if its defined then any excludes will be ignored.
+
+The issue with an exclude list is that new fields can be indexed which also need to be excluded from auto filtering. However, the exclude list is a manual step which often means an empty search response.
+
+<pre>
+ &lt;searchComponent name="autofilter" class="org.apache.solr.handler.component.QueryAutoFilteringComponent" >
+   &lt;arr name="whitelistFields">
+   &lt;str>field1&lt;/str>
+   &lt;str>field2&lt;/str>
+   &lt;str>fieldN&lt;/str>
+   &lt;/arr>
+ &lt;/searchComponent>
+</pre>
+
 ## Filter Query or Boost Query:
 The Query Autofiltering component can be used in filter query or boost query mode. To use
 boost mode by default, add a "boostFactor" configuration setting to the configuration:
@@ -62,7 +75,7 @@ boost mode by default, add a "boostFactor" configuration setting to the configur
 
 To use autofiltering boost query mode "on demand" add an &amp;afb parameter to the query request as in &amp;afb=100
 
-##Sample Data
+## Sample Data
 
 To show the query autofiltering component in action, I created a sample data set for a hypothetical department store. The input data contains a number of fields, product_type, product_category, color, material, brand, style, consumer_type and so on.
 
@@ -78,7 +91,7 @@ To compare the behavior of the search engine with and without autofiltering, use
 
 Happy autofiltering!
 
-#High Level Design
+# High Level Design
 
 [ basic control and data flow ] - build synonym maps (finite state transform)
 
