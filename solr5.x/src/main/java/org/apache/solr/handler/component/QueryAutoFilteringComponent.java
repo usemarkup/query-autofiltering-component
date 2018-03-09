@@ -321,10 +321,12 @@ public class QueryAutoFilteringComponent extends QueryComponent
             Log.debug("Complex query - do not process");
             return;
         }
+        //strip out any tildes from query string
+        String normalizedStr = qStr.replaceAll("~", "");
 
         // tokenize the query string, if any part of it matches, remove the token from the list and
         // add a filter query with <categoryField>:value:
-        ArrayList<char[]> queryTokens = tokenize(qStr);
+        ArrayList<char[]> queryTokens = tokenize(normalizedStr);
 
         if (queryTokens.size() >= mintok) {
             ModifiableSolrParams modParams = new ModifiableSolrParams(params);
